@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <title>Natural Scroll Gallery</title>
+</head>
+<body>
+    <!-- 풀스크린 배경 이미지 -->
+    <img class="background-image fade-in" id="backgroundImage" src="" alt="Background">
+    <div class="background-overlay"></div>
+
+    <div class="gallery-container">
+        <!-- 썸네일 트랙 -->
+        <div class="thumbnail-track">
+            <div class="thumbnail-container" id="thumbnailContainer">
+                <!-- 썸네일들이 JavaScript로 동적 생성됩니다 -->
+            </div>
+        </div>
+
+        <div class="explore-text">
+        ⟵ Scroll and hover to explore.
+    </div>
+</div>
+        
+        <!-- 메인 콘텐츠 -->
+       <div class="main-content fade-in">
+            
+            <div class="image-counter" id="imageCounter">
+            </div>
+        </div> 
+    </div>
+
+    <!-- 인터랙션 가이드 -->
+    <div class="interaction-guide">
+        <div class="guide-item">
+            <span>@9ooraphic</span>
+    </div>
+
+    <script>
+        // 샘플 이미지 데이터 (4:3 비율)
+        const imageData = [
+            'img/back1.png',
+            'img/back2.png',
+            'img/back3.png',
+            'img/back4.png',
+            'img/back5.png',
+            'img/back6.png',
+            'img/back7.png',
+            'img/back8.png',
+            'img/back9.png',
+            'img/back10.png',
+            'img/back11.png',
+            'img/back12.png',
+            'img/back13.png',
+            'img/back14.png',
+            'img/back15.png',
+            'img/back16.png',
+            'img/back17.png',
+        ];
+
+        let currentIndex = 0;
+        let scrollOffset = 0; // 연속적인 스크롤 위치
+        let isTransitioning = false;
+        const thumbnailSpacing = 100; // 썸네일 간격
+        
+        // DOM 요소들
+        const thumbnailContainer = document.getElementById('thumbnailContainer');
+        const backgroundImage = document.getElementById('backgroundImage');
+        const imageCounter = document.getElementById('imageCounter');
+
+        // 썸네일 생성 (무한 스크롤용 - 충분한 개수)
+        function createThumbnails() {
+            thumbnailContainer.innerHTML = '';
+            
+            // 무한 스크롤을 위해 충분한 썸네일 생성 (5배)
+            const totalThumbnails = imageData.length * 5;
+            
+            for (let i = 0; i < totalThumbnails; i++) {
+                const dataIndex = i % imageData.length;
+                
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'thumbnail';
+                thumbnail.dataset.index = dataIndex;
+                thumbnail.dataset.realIndex = i;
+                thumbnail.style.position = 'absolute';
+                thumbnail.style.top = `${i * thumbnailSpacing}px`;
+                
+                const img = document.createElement('img');
+                img.src = imageData[dataIndex];
+                img.alt = `Portrait ${dataIndex + 1}`;
+                
+                thumbnail.appendChild(img);
+                
+                // 호버 시 즉시 배경 이미지 변경
+                thumbnail.addEventListener('mouseenter', () => {
+                    if (!isTransitioning) {
+                        updateBackground(dataIndex);
+                    }
+                });
+                
+                // 클릭 시 해당 이미지로 스크롤
+                thumbnail.addEventListener('click', () => {
+                    scrollToImage(dataIndex);
+                });
+                
+                thumbnailContainer.appendChild(thumbnail);
+            }
+            
+            // 시작 위치 설정 (중앙에서 시작)
+            scrollOffset = imageData.length * thumbnailSpacing * 2;
+            updateThumbnailStates();
+        }
+
+        // 썸네일 상태 실시간 업데이트
+        function updateThumbnailStates() {
+            const thumbnails = thumbnailContainer.children;
+            const centerY = 300; // 트랙 중앙
+            
+            for (let thumbnail of thumbnails) {
+                const realIndex = parseInt(thumbnail.dataset.realIndex);
+                const thumbnailY = realIndex * thumbnailSpacing - scrollOffset;
+                const distanceFromCenter = thumbnailY - centerY;
+                const absDistance = Math.abs(distanceFromCenter);
+                
+                // 7개 썸네일 범위 내에서만 처리
+                if (absDistance <= thumbnailSpacing * 3.5) {
+                    thumbnail.style.display = 'block';
+                    
+                    // 위치별 스타일 적용
+                    let position;
+                    if (absDistance < thumbnailSpacing * 0.5) {
+                        position = 3; // 중앙
+                    } else if (absDistance < thumbnailSpacing * 1.5) {
+                        position = distanceFromCenter > 0 ? 4 : 2; // 위아래 1번째
+                    } else if (absDistance < thumbnailSpacing * 2.5) {
+                        position = distanceFromCenter > 0 ? 5 : 1; // 위아래 2번째
+                    } else {
+                        position = distanceFromCenter > 0 ? 6 : 0; // 위아래 3번째
+                    }
+                    
+                    // 클래스 업데이트
+                    thumbnail.className = `thumbnail position-${position}`;
+                    
+                    // 중앙 이미지 감지
+                    if (position === 3) {
+                        const dataIndex = parseInt(thumbnail.dataset.index);
+                        if (dataIndex !== currentIndex) {
+                            currentIndex = dataIndex;
+                            updateCounter();
+                        }
+                    }
+                } else {
+                    thumbnail.style.display = 'none';
+                }
+            }
+            
+            // 컨테이너 위치 업데이트
+            thumbnailContainer.style.transform = `translateY(-${scrollOffset}px)`;
+        }
+
+        // 특정 이미지로 부드럽게 스크롤
+        function scrollToImage(targetIndex) {
+            if (isTransitioning) return;
+            
+            isTransitioning = true;
+            
+            // 최단 거리 계산
+            let distance = targetIndex - currentIndex;
+            if (distance > imageData.length / 2) {
+                distance -= imageData.length;
+            } else if (distance < -imageData.length / 2) {
+                distance += imageData.length;
+            }
+            
+            const targetOffset = scrollOffset + (distance * thumbnailSpacing);
+            
+            // 부드러운 애니메이션
+            const startOffset = scrollOffset;
+            const duration = 800;
+            const startTime = performance.now();
+            
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // easing function
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                scrollOffset = startOffset + (targetOffset - startOffset) * easeProgress;
+                
+                // 무한 순환 경계 처리
+                handleInfiniteScroll();
+                updateThumbnailStates();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isTransitioning = false;
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // 무한 순환 경계 처리
+        function handleInfiniteScroll() {
+            const cycleLength = imageData.length * thumbnailSpacing;
+            const middlePosition = cycleLength * 2; // 중앙 위치
+            
+            if (scrollOffset > cycleLength * 3.5) {
+                // 너무 아래로 가면 위로 순환
+                scrollOffset -= cycleLength;
+                repositionThumbnails(-cycleLength);
+            } else if (scrollOffset < cycleLength * 0.5) {
+                // 너무 위로 가면 아래로 순환
+                scrollOffset += cycleLength;
+                repositionThumbnails(cycleLength);
+            }
+        }
+
+        // 썸네일 위치 재조정 (무한 순환용)
+        function repositionThumbnails(offset) {
+            const thumbnails = thumbnailContainer.children;
+            for (let thumbnail of thumbnails) {
+                const currentTop = parseInt(thumbnail.style.top);
+                thumbnail.style.top = `${currentTop + offset}px`;
+                thumbnail.dataset.realIndex = parseInt(thumbnail.dataset.realIndex) + (offset / thumbnailSpacing);
+            }
+        }
+
+        // 자연스러운 연속 스크롤 처리
+        function handleScroll(deltaY) {
+            if (isTransitioning) return;
+            
+            // 연속적인 스크롤 (픽셀 단위)
+            const scrollSpeed = Math.max(Math.min(Math.abs(deltaY), 50), 10);
+            const direction = deltaY > 0 ? 1 : -1;
+            
+            scrollOffset += direction * scrollSpeed * 0.5; // 속도 조절
+            
+            // 무한 순환 처리
+            handleInfiniteScroll();
+            updateThumbnailStates();
+        }
+
+        // 배경 이미지 업데이트
+        function updateBackground(index) {
+            backgroundImage.src = imageData[index];
+            currentIndex = index;
+            updateCounter();
+        }
+
+        // 카운터 업데이트
+        function updateCounter() {
+            imageCounter.textContent = `${currentIndex + 1} / ${imageData.length}`;
+        }
+
+        // 마우스 휠 이벤트 (연속적인 반응)
+        function handleWheel(e) {
+            e.preventDefault();
+            handleScroll(e.deltaY);
+        }
+
+        // 터치 이벤트 (연속적인 스크롤)
+        let touchStartY = 0;
+        let lastTouchY = 0;
+        let touchVelocity = 0;
+        let isTouching = false;
+        
+        function handleTouchStart(e) {
+            touchStartY = e.touches[0].clientY;
+            lastTouchY = touchStartY;
+            touchVelocity = 0;
+            isTouching = true;
+        }
+
+        function handleTouchMove(e) {
+            if (!isTouching) return;
+            
+            const currentY = e.touches[0].clientY;
+            const deltaY = lastTouchY - currentY;
+            touchVelocity = deltaY;
+            lastTouchY = currentY;
+            
+            // 연속적인 터치 스크롤
+            handleScroll(deltaY * 2);
+        }
+
+        function handleTouchEnd(e) {
+            isTouching = false;
+            
+            // 관성 스크롤 효과
+            if (Math.abs(touchVelocity) > 3) {
+                let momentum = touchVelocity;
+                const friction = 0.95;
+                
+                function applyMomentum() {
+                    if (Math.abs(momentum) > 0.5 && !isTransitioning) {
+                        handleScroll(momentum);
+                        momentum *= friction;
+                        requestAnimationFrame(applyMomentum);
+                    }
+                }
+                
+                applyMomentum();
+            }
+        }
+
+        // 키보드 네비게이션 (연속적인 스크롤)
+        function handleKeyboard(e) {
+            if (isTransitioning) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    handleScroll(-30);
+                    break;
+                case 'ArrowDown':
+                case 'ArrowRight':
+                    e.preventDefault();
+                    handleScroll(30);
+                    break;
+            }
+        }
+
+        // 초기화
+        function init() {
+            createThumbnails();
+            updateBackground(0);
+            
+            // 이벤트 리스너
+            document.addEventListener('wheel', handleWheel, { passive: false });
+            document.addEventListener('touchstart', handleTouchStart, { passive: true });
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd, { passive: true });
+            document.addEventListener('keydown', handleKeyboard);
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
